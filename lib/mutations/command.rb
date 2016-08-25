@@ -63,6 +63,9 @@ module Mutations
       # Do field-level validation / filtering:
       @inputs, @errors = self.input_filters.filter(@raw_inputs)
 
+      # Run before anything
+      before unless has_errors?
+
       # Run a custom validation method if supplied:
       validate unless has_errors?
     end
@@ -96,6 +99,10 @@ module Mutations
   protected
 
     attr_reader :inputs, :raw_inputs
+
+    def before
+      # Meant to be overridden
+    end
 
     def validate
       # Meant to be overridden
