@@ -64,10 +64,18 @@ module Mutations
       @inputs, @errors = self.input_filters.filter(@raw_inputs)
 
       # Run before anything
-      before unless has_errors?
+      begin
+        before unless has_errors?
+      rescue ValidationException => exception
+        return validation_outcome
+      end
 
       # Run a custom validation method if supplied:
-      validate unless has_errors?
+      begin
+        validate unless has_errors?
+      rescue ValidationException => exception
+        return validation_outcome
+      end
     end
 
     def input_filters
@@ -79,8 +87,18 @@ module Mutations
     end
 
     def run
+      # Return if we have errors
       return validation_outcome if has_errors?
-      validation_outcome(execute)
+
+      # Execute code
+      begin
+        result = execute
+      rescue ValidationException => exception
+        return validation_outcome
+      end
+
+      # Return validation outcome
+      validation_outcome(result)
     end
 
     def run!
@@ -112,11 +130,18 @@ module Mutations
       # Meant to be overridden
     end
 
+    def raise_error(key)
+      add_error(key, nil, nil)
+      raise ValidationException.new(@errors)
+    end
+
     # add_error("name", :too_short)
     # add_error("colors.foreground", :not_a_color) # => to create errors = {colors: {foreground: :not_a_color}}
     # or, supply a custom message:
     # add_error("name", :too_short, "The name 'blahblahblah' is too short!")
     def add_error(key, kind, message = nil)
+      kind = key if kind.nil?
+
       raise ArgumentError.new("Invalid kind") unless kind.is_a?(Symbol)
 
       @errors ||= ErrorHash.new
