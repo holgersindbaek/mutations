@@ -57,25 +57,12 @@ module Mutations
     def initialize(*args)
       @raw_inputs = args.inject({}.with_indifferent_access) do |h, arg|
         raise ArgumentError.new("All arguments must be hashes") unless arg.is_a?(Hash)
-        h.merge!(arg)
+        arg = arg.merge(h)
+        arg
       end
 
       # Do field-level validation / filtering:
       @inputs, @errors = self.input_filters.filter(@raw_inputs)
-
-      # Run before anything
-      begin
-        before unless has_errors?
-      rescue ValidationException => exception
-        return validation_outcome
-      end
-
-      # Run a custom validation method if supplied:
-      begin
-        validate unless has_errors?
-      rescue ValidationException => exception
-        return validation_outcome
-      end
     end
 
     def input_filters
@@ -87,13 +74,27 @@ module Mutations
     end
 
     def run
-      # Return if we have errors
-      return validation_outcome if has_errors?
+      # Run before anything
+      begin
+        before unless has_errors?
+      rescue => exception
+        add_error(:execution)
+        return validation_outcome
+      end
+
+      # Run a custom validation method if supplied:
+      begin
+        validate unless has_errors?
+      rescue => exception
+        add_error(:execution)
+        return validation_outcome
+      end
 
       # Execute code
       begin
         result = execute
-      rescue ValidationException => exception
+      rescue => exception
+        add_error(:execution)
         return validation_outcome
       end
 
@@ -139,7 +140,7 @@ module Mutations
     # add_error("colors.foreground", :not_a_color) # => to create errors = {colors: {foreground: :not_a_color}}
     # or, supply a custom message:
     # add_error("name", :too_short, "The name 'blahblahblah' is too short!")
-    def add_error(key, kind, message = nil)
+    def add_error(key, kind = nil, message = nil)
       kind = key if kind.nil?
 
       raise ArgumentError.new("Invalid kind") unless kind.is_a?(Symbol)

@@ -3,6 +3,7 @@ module Mutations
     @default_options = {
       :strip => true,          # true calls data.strip if data is a string
       :strict => true,         # If false, then symbols, numbers, and booleans are converted to a string with to_s.
+      :symbolize => false,     # Symbolize string.
       :nils => false,          # true allows an explicit nil to be valid. Overrides any other options
       :empty => false,         # false disallows "".  true allows "" and overrides any other validations (b/c they couldn't be true if it's empty)
       :min_length => nil,      # Can be a number like 5, meaning that 5 codepoints are required
@@ -14,7 +15,6 @@ module Mutations
     }
 
     def filter(data)
-
       # Handle nil case
       if data.nil?
         return [nil, nil] if options[:nils]
@@ -51,6 +51,9 @@ module Mutations
 
       # Ensure it matches the regexp
       return [data, :matches] if options[:matches] && (options[:matches] !~ data)
+
+      # Symbolize string
+      data = data.to_sym if options[:symbolize]
 
       # We win, it's valid!
       [data, nil]

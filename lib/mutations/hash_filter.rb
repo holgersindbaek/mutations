@@ -82,12 +82,12 @@ module Mutations
       return [data, :hash] unless data.is_a?(Hash)
 
       # We always want a hash with indiffernet access
-      unless data.is_a?(HashWithIndifferentAccess)
-        data = data.with_indifferent_access
+      unless data.is_a?(Hash)
+        data = data.symbolize_keys
       end
 
       errors = ErrorHash.new
-      filtered_data = HashWithIndifferentAccess.new
+      filtered_data = Hash.new
       wildcard_filterer = nil
 
       [[@required_inputs, true], [@optional_inputs, false]].each do |(inputs, is_required)|
@@ -117,7 +117,7 @@ module Mutations
               errors[key] = sub_error
             end
           end
-          
+
           if !data.has_key?(key)
             if filterer.has_default?
               filtered_data[key] = filterer.default
