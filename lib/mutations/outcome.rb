@@ -14,11 +14,24 @@ module Mutations
       !@success
     end
 
+    def result
+      @result.is_a?(Hash) ? @result.symbolize_keys : {}
+    end
+
+    def json
+      self.result[:json] || {}
+    end
+
     def response
+      ap "response 1"
       if self.success?
-        { json: @result.to_h[:json] || {}, status: @result.to_h[:status] || 200 }
+        ap "response 2"
+        ap ({ json: self.json, status: self.result[:status] || 200 })
+        { json: self.json, status: self.result[:status] || 200 }
       else
-        { json: { errors: @errors.symbolic }, status: @result.to_h[:status] || 400 }
+        ap "response 3"
+        ap ({ json: ({ errors: @errors.symbolic }).merge(self.result), status: self.result[:status] || 400 })
+        { json: ({ errors: @errors.symbolic }).merge(self.result), status: self.result[:status] || 400 }
       end
     end
   end

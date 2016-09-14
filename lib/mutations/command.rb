@@ -28,8 +28,23 @@ module Mutations
         create_attr_methods(:optional, &block)
       end
 
+      def queue(queue, options = {})
+        @queue = queue
+      end
+
       def run(*args)
-        new(*args).run
+        # Create instance
+        instance = new(*args)
+
+        # Run instance on or off queue
+        if @queue.present?
+          queue_options = { queue: @queue }
+          queue_options = queue_options.merge({ queue: args.first[:queue] }) if args.first[:queue].present?
+          queue_options = queue_options.merge({ run_at: args.first[:run_at] }) if args.first[:run_at].present?
+          instance.delay(queue_options).run
+        else
+          instance.run
+        end
       end
 
       def run!(*args)
@@ -77,24 +92,27 @@ module Mutations
       # Run before anything
       begin
         before unless has_errors?
-      rescue => exception
+      rescue => error
         add_error(:execution)
+        Raygun.track_exception(error)
         return validation_outcome
       end
 
       # Run a custom validation method if supplied:
       begin
         validate unless has_errors?
-      rescue => exception
+      rescue => error
         add_error(:execution)
+        Raygun.track_exception(error)
         return validation_outcome
       end
 
       # Execute code
       begin
         result = execute
-      rescue => exception
+      rescue => error
         add_error(:execution)
+        Raygun.track_exception(error)
         return validation_outcome
       end
 
@@ -112,7 +130,7 @@ module Mutations
     end
 
     def validation_outcome(result = nil)
-      Outcome.new(!has_errors?, has_errors? ? nil : result, @errors, @inputs)
+      Outcome.new(!has_errors?, has_errors? ? @error : result, @errors, @inputs)
     end
 
   protected
@@ -131,8 +149,9 @@ module Mutations
       # Meant to be overridden
     end
 
-    def raise_error(key)
-      add_error(key, nil, nil)
+    def raise_error(status = :standard, message = nil)
+      add_error(:standard)
+      @error = { error_status: status, error_message: message }
       raise ValidationException.new(@errors)
     end
 
