@@ -89,12 +89,23 @@ module Mutations
     end
 
     def run
+      # Return if we have errors
+      if has_errors?
+        ap @errors if Rails.env.development?
+        error.backtrace.each { |line| ap line } if Rails.env.development?
+        add_error(:required)
+        Raygun.track_exception(@error, custom_data: { point_of_error: :required })
+        return validation_outcome
+      end
+
       # Run before anything
       begin
         before unless has_errors?
       rescue => error
-        add_error(:execution)
-        Raygun.track_exception(error)
+        ap error if Rails.env.development?
+        error.backtrace.each { |line| ap line } if Rails.env.development?
+        add_error(:before)
+        Raygun.track_exception(error, custom_data: { point_of_error: :before })
         return validation_outcome
       end
 
@@ -102,8 +113,10 @@ module Mutations
       begin
         validate unless has_errors?
       rescue => error
-        add_error(:execution)
-        Raygun.track_exception(error)
+        ap error if Rails.env.development?
+        error.backtrace.each { |line| ap line } if Rails.env.development?
+        add_error(:validation)
+        Raygun.track_exception(error, custom_data: { point_of_error: :validation })
         return validation_outcome
       end
 
@@ -111,8 +124,10 @@ module Mutations
       begin
         result = execute
       rescue => error
+        ap error if Rails.env.development?
+        error.backtrace.each { |line| ap line } if Rails.env.development?
         add_error(:execution)
-        Raygun.track_exception(error)
+        Raygun.track_exception(error, custom_data: { point_of_error: :execution })
         return validation_outcome
       end
 
@@ -150,7 +165,8 @@ module Mutations
     end
 
     def raise_error(status = :standard, message = nil)
-      add_error(:standard)
+      ap status if Rails.env.development?
+      add_error(status)
       @error = { error_status: status, error_message: message }
       raise ValidationException.new(@errors)
     end
