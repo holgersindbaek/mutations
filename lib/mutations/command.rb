@@ -41,7 +41,7 @@ module Mutations
           queue_options = { queue: @queue }
           queue_options = queue_options.merge({ queue: args.first[:queue] }) if args.first[:queue].present?
           queue_options = queue_options.merge({ run_at: args.first[:run_at] }) if args.first[:run_at].present?
-          instance.delay(queue_options).run
+          instance.delay(queue_options).run(true)
         else
           instance.run
         end
@@ -88,11 +88,10 @@ module Mutations
       !@errors.nil?
     end
 
-    def run
+    def run(skip_before_action = false)
       # Return if we have errors
       if has_errors?
         ap @errors if Rails.env.development?
-        error.backtrace.each { |line| ap line } if Rails.env.development?
         add_error(:required)
         Raygun.track_exception(@error, custom_data: { point_of_error: :required })
         return validation_outcome
@@ -100,7 +99,7 @@ module Mutations
 
       # Run before anything
       begin
-        before unless has_errors?
+        before unless has_errors? || skip_before_action  # Hack because delayed job also runs the before method
       rescue => error
         ap error if Rails.env.development?
         error.backtrace.each { |line| ap line } if Rails.env.development?
