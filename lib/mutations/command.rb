@@ -167,7 +167,7 @@ module Mutations
     end
 
     def raise_error(status = :standard, message = nil)
-      ap status if Rails.env.development?
+      ap status #if Rails.env.development?
       add_error(status)
       @error = { error_status: status, error_message: message }
       raise ValidationException.new(@errors)
