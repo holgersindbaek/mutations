@@ -89,6 +89,10 @@ module Mutations
     end
 
     def run(skip_before_action = false)
+      # Output variables
+      ap "@inputs:"
+      ap @inputs
+
       # Return if we have errors
       if has_errors?
         ap @errors #if Rails.env.development?
