@@ -89,53 +89,52 @@ module Mutations
     end
 
     def run(skip_before_action = false)
-      # Output variables
-      ap "@inputs:"
-      ap @inputs
-
       # Return if we have errors
       if has_errors?
-        ap @errors #if Rails.env.development?
         add_error(:required)
-        Raygun.track_exception(@error, custom_data: { point_of_error: :required })
+        report_error(@error)
         return validation_outcome
       end
 
       # Run before anything
       begin
         before unless has_errors? || skip_before_action  # Hack because delayed job also runs the before method
-      rescue => error
-        ap "before:" #if Rails.env.development?
-        ap error #if Rails.env.development?
-        error.backtrace.each { |line| ap line } #if Rails.env.development?
+      rescue ErrorException => error
         add_error(:before)
-        Raygun.track_exception(error, custom_data: { point_of_error: :before })
+        report_error(error)
+        return validation_outcome
+      rescue FailureException => error
+        return validation_outcome
+      rescue SuccessException => error
         return validation_outcome
       end
 
       # Run a custom validation method if supplied:
       begin
         validate unless has_errors?
-      rescue => error
-        ap "validate:" #if Rails.env.development?
-        ap error #if Rails.env.development?
-        error.backtrace.each { |line| ap line } #if Rails.env.development?
+      rescue ErrorException => error
         add_error(:validation)
-        Raygun.track_exception(error, custom_data: { point_of_error: :validation })
+        report_error(error)
+        return validation_outcome
+      rescue FailureException => error
+        return validation_outcome
+      rescue SuccessException => error
         return validation_outcome
       end
 
       # Execute code
       begin
         result = execute
-      rescue => error
-        ap "execute:" #if Rails.env.development?
-        ap error #if Rails.env.development?
-        error.backtrace.each { |line| ap line } #if Rails.env.development?
+      rescue ErrorException => error
         add_error(:execution)
-        Raygun.track_exception(error, custom_data: { point_of_error: :execution })
+        report_error(error)
+        return validation_outcome
+      rescue FailureException => error
+        return validation_outcome
+      rescue SuccessException => error
         return validation_outcome
       end
+
 
       # Return validation outcome
       validation_outcome(result)
@@ -146,7 +145,7 @@ module Mutations
       if outcome.success?
         outcome.result
       else
-        raise ValidationException.new(outcome.errors)
+        raise ErrorException.new(outcome.errors)
       end
     end
 
@@ -171,10 +170,21 @@ module Mutations
     end
 
     def raise_error(status = :standard, message = nil)
-      ap status #if Rails.env.development?
       add_error(status)
       @error = { error_status: status, error_message: message }
-      raise ValidationException.new(@errors)
+      raise ErrorException.new(@errors)
+    end
+
+    def return_failure(status = :standard, message = nil)
+      add_error(status)
+      @error = { error_status: status, error_message: message }
+      raise FailureException.new(@errors)
+    end
+
+    def return_success(status = :standard, message = nil)
+      # add_error(status)
+      # @error = { error_status: status, error_message: message }
+      raise SuccessException.new
     end
 
     # add_error("name", :too_short)
@@ -204,5 +214,16 @@ module Mutations
       end
     end
 
+    def report_error(error)
+      # Output error to console
+      if Rails.env.development?
+        ap "------------------------------------------------------------------"
+        ap error
+        error.backtrace.each { |line| ap line }
+      end
+
+      # Log error to Raygun
+      Raygun.track_exception(error, custom_data: (@inputs || {}))
+    end
   end
 end

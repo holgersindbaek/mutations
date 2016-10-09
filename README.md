@@ -103,7 +103,7 @@ end
 Or, you can do this:
 
 ```ruby
-user = UserSignup.run!(params) # returns the result of execute, or raises Mutations::ValidationException
+user = UserSignup.run!(params) # returns the result of execute, or raises Mutations::ErrorException
 ```
 
 ## What can I pass to mutations?
