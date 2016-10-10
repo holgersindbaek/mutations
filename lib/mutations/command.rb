@@ -107,6 +107,10 @@ module Mutations
         return validation_outcome
       rescue SuccessException => error
         return validation_outcome
+      rescue => error
+        add_error(:before)
+        report_error(error)
+        return validation_outcome
       end
 
       # Run a custom validation method if supplied:
@@ -120,6 +124,10 @@ module Mutations
         return validation_outcome
       rescue SuccessException => error
         return validation_outcome
+      rescue => error
+        add_error(:validation)
+        report_error(error)
+        return validation_outcome
       end
 
       # Execute code
@@ -132,6 +140,10 @@ module Mutations
       rescue FailureException => error
         return validation_outcome
       rescue SuccessException => error
+        return validation_outcome
+      rescue => error
+        add_error(:execution)
+        report_error(error)
         return validation_outcome
       end
 
