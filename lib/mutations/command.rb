@@ -233,6 +233,10 @@ module Mutations
         ap error
         error.backtrace.each { |line| ap line }
       end
+      ap "report_error:"
+      ap (@inputs || {})
+      ap error
+      ap @error
 
       # Log error to Raygun
       Raygun.track_exception(error, custom_data: (@inputs || {}))
