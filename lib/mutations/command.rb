@@ -224,11 +224,11 @@ module Mutations
 
     def report_error(error)
       # Output error to console
-      if Rails.env.development?
+      # if Rails.env.development?
         ap "------------------------------------------------------------------"
         ap error
         error.backtrace.each { |line| ap line }
-      end
+      # end
 
       # Log error to Raygun
       Raygun.track_exception(error, custom_data: (@inputs || {}))
