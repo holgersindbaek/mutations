@@ -91,14 +91,12 @@ module Mutations
     def run(skip_before_action = false)
       # Return if we have errors
       if has_errors?
-        add_error(:required)
-        report_error(@error)
         return validation_outcome
       end
 
       # Run before anything
       begin
-        before unless has_errors? || skip_before_action  # Hack because delayed job also runs the before method
+        before unless skip_before_action  # Hack because delayed job also runs the before method
       rescue ErrorException => error
         add_error(:before)
         report_error(error)
@@ -115,7 +113,7 @@ module Mutations
 
       # Run a custom validation method if supplied:
       begin
-        validate unless has_errors?
+        validate
       rescue ErrorException => error
         add_error(:validation)
         report_error(error)
@@ -194,8 +192,6 @@ module Mutations
     end
 
     def return_success(status = :standard, message = nil)
-      # add_error(status)
-      # @error = { error_status: status, error_message: message }
       raise SuccessException.new
     end
 
@@ -233,10 +229,6 @@ module Mutations
         ap error
         error.backtrace.each { |line| ap line }
       end
-      ap "report_error:"
-      ap (@inputs || {})
-      ap error
-      ap @error
 
       # Log error to Raygun
       Raygun.track_exception(error, custom_data: (@inputs || {}))
